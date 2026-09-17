@@ -39,7 +39,8 @@ final class AppState {
     private let store: any StateStore
     private let launcher: any AppLauncher
     private let clock: any Clock
-    private let holidayProvider: any HolidayProvider
+    /// Recriado quando o usuário muda os calendários selecionados.
+    private var holidayProvider: any HolidayProvider
     private let loginItem: any LoginItemManager
     private let notifier: UserNotificationsNotifier
     private let eventSource: WorkspaceEventSource
@@ -97,7 +98,8 @@ final class AppState {
             store: store,
             launcher: NSWorkspaceAppLauncher(),
             clock: clock,
-            holidayProvider: BrazilianHolidayProvider(calendar: clock.calendar),
+            holidayProvider: Self.makeHolidayProvider(
+                calendarIDs: config.holidayCalendarIDs, calendar: clock.calendar),
             loginItem: SMAppServiceLoginItem(),
             notifier: notifier,
             eventSource: WorkspaceEventSource(),
@@ -105,6 +107,19 @@ final class AppState {
         )
         notifier.answerSink = state
         return state
+    }
+
+    /// O EventKit vem na frente para pegar feriados municipais e datas
+    /// pessoais; a lista nacional atrás garante que negar a permissão não
+    /// quebra a detecção.
+    private static func makeHolidayProvider(
+        calendarIDs: [String], calendar: Calendar
+    ) -> any HolidayProvider {
+        let national = BrazilianHolidayProvider(calendar: calendar)
+        guard !calendarIDs.isEmpty else { return national }
+        return ChainedHolidayProvider(
+            primary: EventKitHolidayProvider(calendarIDs: calendarIDs, calendar: calendar),
+            fallback: national)
     }
 
     // MARK: - Ciclo de vida
@@ -135,6 +150,9 @@ final class AppState {
         restorePendingPrompt()
 
         loginItemStatus = await loginItem.status()
+        refreshCalendars()
+        scheduleWeeklyReport()
+        purgeOldTracking()
 
         Task { [weak self] in
             guard let self else { return }
@@ -185,7 +203,16 @@ final class AppState {
 
     func shutdown() {
         eventTask?.cancel()
+        weeklyReportTask?.cancel()
         tracker.stop()
+    }
+
+    /// Respeita a retenção configurada, apagando os arquivos mensais antigos.
+    private func purgeOldTracking() {
+        guard let cutoff = clock.calendar.date(
+            byAdding: .day, value: -config.tracking.retentionDays, to: clock.now)
+        else { return }
+        try? store.purgeTracking(olderThan: cutoff)
     }
 
     func refreshRunningApps() async {
@@ -383,6 +410,198 @@ final class AppState {
         } catch {
             storeError = String(describing: error)
         }
+    }
+
+    // MARK: - Edição de perfis
+
+    /// Grava um perfil alterado. Toda edição passa por aqui, então o
+    /// config.json fica sempre em dia com a UI.
+    func update(profile: Profile) {
+        var updated = config
+        guard let index = updated.profiles.firstIndex(where: { $0.id == profile.id })
+        else { return }
+        updated.profiles[index] = profile
+        save(config: updated)
+    }
+
+    func addProfile() -> Profile {
+        let new = Profile(
+            name: "Novo perfil",
+            weekdays: Weekday.workdays,
+            window: TimeWindow(from: 9, to: 18),
+            priority: 0,
+            symbolName: "circle")
+        var updated = config
+        updated.profiles.append(new)
+        save(config: updated)
+        return new
+    }
+
+    func duplicate(profile: Profile) -> Profile {
+        var copy = profile
+        copy.id = UUID()
+        copy.name = "\(profile.name) (cópia)"
+        // Os itens precisam de identidade própria, senão a lista da UI
+        // confunde as duas cópias.
+        copy.items = profile.items.map {
+            ProfileItem(
+                item: $0.item, isEnabled: $0.isEnabled,
+                bringToFront: $0.bringToFront, launchHidden: $0.launchHidden)
+        }
+        var updated = config
+        updated.profiles.append(copy)
+        save(config: updated)
+        return copy
+    }
+
+    func delete(profileID: UUID) {
+        var updated = config
+        updated.profiles.removeAll { $0.id == profileID }
+        save(config: updated)
+    }
+
+    func moveProfiles(from source: IndexSet, to destination: Int) {
+        var updated = config
+        updated.profiles.move(fromOffsets: source, toOffset: destination)
+        save(config: updated)
+    }
+
+    // MARK: - Configurações gerais
+
+    func setWakeThreshold(_ hours: Double) {
+        var updated = config
+        updated.wakeThresholdHours = max(0, hours)
+        save(config: updated)
+    }
+
+    func setLaunchDelay(_ milliseconds: Int) {
+        var updated = config
+        updated.launchDelayMilliseconds = max(0, milliseconds)
+        save(config: updated)
+    }
+
+    func setHolidayBehavior(_ behavior: HolidayBehavior) {
+        var updated = config
+        updated.holidayBehavior = behavior
+        save(config: updated)
+    }
+
+    func setTracking(_ tracking: TrackingConfig) {
+        var updated = config
+        updated.tracking = tracking
+        save(config: updated)
+    }
+
+    func setWeeklyReport(enabled: Bool, weekday: Weekday, hour: Int) {
+        var updated = config
+        updated.weeklyReportEnabled = enabled
+        updated.weeklyReportWeekday = weekday
+        updated.weeklyReportHour = hour
+        save(config: updated)
+    }
+
+    /// Apaga todo o histórico de uso.
+    func eraseTrackingData() {
+        try? store.purgeTracking(olderThan: clock.now.addingTimeInterval(86_400))
+        tracker.resetToday()
+    }
+
+    // MARK: - Calendários de feriado
+
+    private(set) var calendarAuthorization = EventKitHolidayProvider.authorization
+    private(set) var availableCalendars: [EventKitHolidayProvider.CalendarInfo] = []
+
+    func requestCalendarAccess() async {
+        let provider = EventKitHolidayProvider(
+            calendarIDs: config.holidayCalendarIDs, calendar: clock.calendar)
+        calendarAuthorization = await provider.requestAccess()
+        refreshCalendars()
+
+        // Na primeira autorização, já marca os calendários que parecem ser
+        // de feriados, para o recurso funcionar sem configuração extra.
+        if calendarAuthorization == .authorized, config.holidayCalendarIDs.isEmpty {
+            let suggested = provider.suggestedHolidayCalendarIDs()
+            if !suggested.isEmpty {
+                setHolidayCalendars(suggested)
+            }
+        }
+        await refreshHoliday()
+    }
+
+    func refreshCalendars() {
+        calendarAuthorization = EventKitHolidayProvider.authorization
+        guard calendarAuthorization == .authorized else {
+            availableCalendars = []
+            return
+        }
+        let provider = EventKitHolidayProvider(
+            calendarIDs: config.holidayCalendarIDs, calendar: clock.calendar)
+        availableCalendars = provider.availableCalendars()
+    }
+
+    func setHolidayCalendars(_ ids: [String]) {
+        var updated = config
+        updated.holidayCalendarIDs = ids
+        save(config: updated)
+        holidayProvider = Self.makeHolidayProvider(
+            calendarIDs: ids, calendar: clock.calendar)
+        Task { await refreshHoliday() }
+    }
+
+    func openCalendarSettings() {
+        guard
+            let url = URL(
+                string:
+                    "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars")
+        else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    // MARK: - Resumo semanal
+
+    private var weeklyReportTask: Task<Void, Never>?
+
+    /// Verifica de hora em hora se chegou a hora do resumo. Um timer de
+    /// precisão não se justifica para algo que acontece uma vez por semana.
+    private func scheduleWeeklyReport() {
+        weeklyReportTask?.cancel()
+        weeklyReportTask = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.postWeeklyReportIfDue()
+                try? await Task.sleep(for: .seconds(3600))
+            }
+        }
+    }
+
+    private func postWeeklyReportIfDue() async {
+        guard config.weeklyReportEnabled else { return }
+
+        let now = clock.now
+        let parts = clock.calendar.dateComponents([.weekday, .hour], from: now)
+        guard parts.weekday == config.weeklyReportWeekday.rawValue,
+              let hour = parts.hour, hour == config.weeklyReportHour
+        else { return }
+
+        // Uma vez por semana, mesmo que o app reinicie no mesmo dia.
+        guard let day = ProfileResolver.dayString(now, calendar: clock.calendar),
+              lastWeeklyReportDay != day
+        else { return }
+        lastWeeklyReportDay = day
+
+        let report = self.report(forWeekContaining: now)
+        guard report.totalActive > 0 else { return }
+
+        let top = report.apps.first.map { " \($0.appName) liderou." } ?? ""
+        await notifier.postWeeklyReport(
+            title: "Sua semana no Mac",
+            body:
+                "\(DurationFormat.short(report.totalActive)) de uso ativo, média de \(DurationFormat.short(report.dailyAverage)) por dia.\(top)"
+        )
+    }
+
+    private var lastWeeklyReportDay: String? {
+        get { UserDefaults.standard.string(forKey: "lastWeeklyReportDay") }
+        set { UserDefaults.standard.set(newValue, forKey: "lastWeeklyReportDay") }
     }
 
     // MARK: - Login item

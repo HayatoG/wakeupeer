@@ -295,6 +295,14 @@ public final class UsageTracker {
 
     // MARK: - Escrita
 
+    /// Zera os totais em memória depois que o histórico é apagado.
+    public func resetToday() {
+        todayTotals = [:]
+        todayActive = 0
+        buffer = []
+        current = nil
+    }
+
     public func flush() {
         guard !buffer.isEmpty else { return }
         let pending = buffer
