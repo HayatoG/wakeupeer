@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  # Prova que o domínio não depende de nada da Apple. Se alguém importar
+  # AppKit ali sem querer, este job quebra antes de a portabilidade virar
+  # uma reescrita.
+  portability:
+    name: Domínio compila em Linux
+    runs-on: ubuntu-latest
+    container: swift:6.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compilar os alvos puros
+        working-directory: WakeUpeerCore
+        run: |
+          swift build --target WakeUpeerDomain
+          swift build --target WakeUpeerPersistence
+      - name: Testar os alvos puros
+        working-directory: WakeUpeerCore
+        run: swift test --filter 'WakeUpeer(Domain|Persistence)Tests'
+
+  macos:
+    name: Testes no macOS
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Testar o pacote
+        working-directory: WakeUpeerCore
+        run: swift test
+      - name: Compilar o app
+        run: |
+          xcodebuild -project WakeUpeer.xcodeproj \
+            -scheme WakeUpeer -configuration Debug \
+            CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build

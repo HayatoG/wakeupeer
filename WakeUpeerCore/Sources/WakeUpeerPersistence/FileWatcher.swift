@@ -1,5 +1,9 @@
 import Foundation
 
+#if canImport(Darwin)
+    import Darwin
+#endif
+
 /// Observa um arquivo e avisa quando ele muda fora do app.
 ///
 /// Serve para o `config.json` editado à mão continuar valendo sem
@@ -12,8 +16,10 @@ public final class FileWatcher: @unchecked Sendable {
     private let debounce: TimeInterval
     private let onChange: @Sendable () -> Void
 
-    private var source: DispatchSourceFileSystemObject?
-    private var descriptor: CInt = -1
+    #if canImport(Darwin)
+        private var source: DispatchSourceFileSystemObject?
+        private var descriptor: CInt = -1
+    #endif
     private var pendingWork: DispatchWorkItem?
     private let queue = DispatchQueue(label: "com.guilherme.WakeUpeer.filewatcher")
 
@@ -31,18 +37,33 @@ public final class FileWatcher: @unchecked Sendable {
     }
 
     deinit {
-        source?.cancel()
+        #if canImport(Darwin)
+            source?.cancel()
+        #endif
     }
 
     public func start() {
-        queue.async { [weak self] in self?.attach() }
+        #if canImport(Darwin)
+            queue.async { [weak self] in self?.attach() }
+        #else
+            // `O_EVTONLY` e o observador de sistema de arquivos do Dispatch
+            // são específicos do Darwin. Em outras plataformas, comparar a
+            // data de modificação de tempos em tempos resolve: o arquivo é
+            // pequeno e muda raramente.
+            queue.async { [weak self] in self?.pollForChanges() }
+        #endif
     }
 
     public func stop() {
         queue.async { [weak self] in
-            self?.pendingWork?.cancel()
-            self?.source?.cancel()
-            self?.source = nil
+            guard let self else { return }
+            self.pendingWork?.cancel()
+            #if canImport(Darwin)
+                self.source?.cancel()
+                self.source = nil
+            #else
+                self.isPolling = false
+            #endif
         }
     }
 
@@ -54,6 +75,34 @@ public final class FileWatcher: @unchecked Sendable {
         }
     }
 
+    #if !canImport(Darwin)
+        private var isPolling = false
+        private var lastModified: Date?
+
+        private func pollForChanges() {
+            guard !isPolling else { return }
+            isPolling = true
+            schedulePoll()
+        }
+
+        private func schedulePoll() {
+            queue.asyncAfter(deadline: .now() + 2) { [weak self] in
+                guard let self, self.isPolling else { return }
+                let attributes = try? FileManager.default.attributesOfItem(atPath: self.url.path)
+                let modified = attributes?[.modificationDate] as? Date
+
+                if let modified, let last = self.lastModified, modified > last,
+                   Date() >= self.muteUntil
+                {
+                    self.onChange()
+                }
+                if modified != nil { self.lastModified = modified }
+                self.schedulePoll()
+            }
+        }
+    #endif
+
+    #if canImport(Darwin)
     private func attach() {
         source?.cancel()
         source = nil
@@ -96,6 +145,8 @@ public final class FileWatcher: @unchecked Sendable {
         source.resume()
         self.source = source
     }
+
+    #endif  // canImport(Darwin)
 
     /// Um salvamento gera vários eventos; o debounce recolhe a rajada.
     private func scheduleNotification() {
