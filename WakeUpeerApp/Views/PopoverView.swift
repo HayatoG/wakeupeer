@@ -49,7 +49,7 @@ struct PopoverView: View {
         .background(.regularMaterial)
         .animation(.snappy(duration: 0.28), value: state.pendingPrompt)
         .animation(.snappy(duration: 0.28), value: state.activeProfile?.id)
-        .task { await state.bootstrap() }
+        .task { await state.refreshRunningApps() }
         .task {
             // Os tempos sobem à vista, mas só enquanto o painel está aberto:
             // um timer de 1 s rodando o dia inteiro não se justifica.
@@ -582,8 +582,7 @@ private struct FooterView: View {
             Spacer(minLength: 0)
 
             IconButton(symbol: "chart.bar", help: "Relatório de uso") {
-                activateApp()
-                openWindow(id: WindowID.report)
+                (NSApp.delegate as? AppDelegate)?.showReportWindow()
             }
 
             IconButton(symbol: "gearshape", help: "Preferências") {

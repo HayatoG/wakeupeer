@@ -30,6 +30,10 @@ final class AppState {
     /// tempos subirem à vista.
     private(set) var tick = 0
 
+    /// Chamado quando algo pede a janela de relatório — por ora, tocar na
+    /// notificação semanal. O AppDelegate abre a janela em AppKit.
+    var onOpenReport: (@MainActor () -> Void)?
+
     // MARK: Dependências
 
     private let store: any StateStore
@@ -115,17 +119,28 @@ final class AppState {
         }
         hasBootstrapped = true
 
-        notificationsAuthorized = await notifier.requestAuthorization()
-        loginItemStatus = await loginItem.status()
+        notifier.onOpenReport = { [weak self] in
+            Task { @MainActor in self?.onOpenReport?() }
+        }
+
+        // O rastreamento começa primeiro, e sem await: pedir autorização de
+        // notificações bloqueia até o usuário responder o diálogo, e não faz
+        // sentido o tempo do dia ficar refém dessa resposta.
+        tracker.currentProfileID = activeProfile?.id
+        tracker.start()
+        observeSystemEvents()
 
         await refreshRunningApps()
         await refreshHoliday()
-
-        tracker.currentProfileID = activeProfile?.id
-        tracker.start()
-
         restorePendingPrompt()
-        observeSystemEvents()
+
+        loginItemStatus = await loginItem.status()
+
+        Task { [weak self] in
+            guard let self else { return }
+            let granted = await self.notifier.requestAuthorization()
+            await MainActor.run { self.notificationsAuthorized = granted }
+        }
     }
 
     /// Se o app foi encerrado com uma pergunta em aberto, ela volta.
