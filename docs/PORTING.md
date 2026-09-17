@@ -8,6 +8,7 @@ Este guia diz exatamente o que implementar, com qual API de cada plataforma, e o
 
 ## Sumário
 
+- [Swift fora da Apple](#swift-fora-da-apple)
 - [O que já está pronto](#o-que-já-está-pronto)
 - [O que precisa ser escrito](#o-que-precisa-ser-escrito)
 - [Estrutura do novo alvo](#estrutura-do-novo-alvo)
@@ -18,6 +19,60 @@ Este guia diz exatamente o que implementar, com qual API de cada plataforma, e o
 - [Ordem de implementação](#ordem-de-implementação)
 - [Como verificar](#como-verificar)
 - [Armadilhas](#armadilhas)
+
+---
+
+## Swift fora da Apple
+
+Vale começar por aqui, porque a dúvida costuma ser se isto é viável, não como fazer.
+
+Linux e Windows são plataformas **oficiais** do Swift, no mesmo nível: *Deployment and Development* — o compilador roda nelas e programas podem ser construídos para elas. Mudanças no compilador precisam passar nos testes dessas plataformas antes de serem integradas, então não é suporte de fachada.
+
+| | Linux | Windows |
+|---|---|---|
+| Versão atual | 6.4 | 6.4 |
+| Oficial desde | 2016 | 2020 |
+| Mínimo | Ubuntu 22.04 · Debian 12 · Fedora 41 · RHEL/UBI 9 · Amazon Linux 2023 | Windows 10 |
+| Foundation, Dispatch, testes | Sim | Sim |
+| Estabilidade de ABI | Não | Não |
+
+A ausência de estabilidade de ABI significa que binários precisam ser distribuídos com as bibliotecas do runtime, em vez de contar com o que o sistema tem. Para uso pessoal, é detalhe de empacotamento.
+
+Em janeiro de 2026 foi criado um [workgroup dedicado ao Windows](https://www.swift.org/blog/announcing-windows-workgroup/), com a tarefa explícita de aproximar Foundation e Dispatch dos idiomas da plataforma — sinal de que o suporte segue avançando em vez de estagnar.
+
+### Instalar o compilador
+
+**Linux** — pelo [swiftly](https://www.swift.org/install/linux/), o gerenciador oficial de toolchains:
+
+```sh
+curl -O https://download.swift.org/swiftly/linux/swiftly-$(uname -m).tar.gz
+tar zxf swiftly-$(uname -m).tar.gz && ./swiftly init
+swiftly install latest
+```
+
+Há também imagens Docker oficiais (`swift:6.4`), úteis para experimentar sem instalar nada.
+
+**Windows** — pelo gerenciador de pacotes:
+
+```powershell
+winget install --id Swift.Toolchain
+```
+
+Antes disso é preciso o Visual Studio 2022 Community com as ferramentas C++ e o Windows 11 SDK: o Swift usa o linker e as bibliotecas da Microsoft, não traz os seus. VS Code com a extensão oficial do Swift dá autocompletar, depuração e execução de testes.
+
+### O teste de trinta minutos
+
+Antes de escrever qualquer código de plataforma, vale provar que a base funciona:
+
+```sh
+git clone https://github.com/HayatoG/wakeupeer.git
+cd wakeupeer/WakeUpeerCore
+swift test --filter 'WakeUpeer(Domain|Persistence)Tests'
+```
+
+Os 83 testes devem passar sem alteração nenhuma. Se passarem, toda a lógica difícil — virada da meia-noite, sobreposição de perfis, fusos horários, horário de verão, feriados, agregação do relatório — já está funcionando na plataforma nova. O que resta é ligação com o sistema e interface.
+
+Se não passarem, o problema está na base e é isso que se corrige primeiro. Veja [como verificar](#como-verificar) para as causas prováveis.
 
 ---
 
@@ -222,18 +277,87 @@ Esta é a única parte genuinamente difícil no Linux, e vale decidir cedo.
 
 O ocioso no Wayland tem saída melhor: `org.freedesktop.ScreenSaver.GetSessionIdleTime` ou o protocolo `ext-idle-notify-v1`.
 
+### D-Bus sem dependências
+
+Boa parte das portas do Linux passa por D-Bus. Há ligações Swift, mas para um app pessoal invocar `gdbus` ou `busctl` por `Process` evita uma dependência nativa inteira e é suficiente:
+
+```swift
+/// Notificação com dois botões, via D-Bus.
+/// O retorno é o id da notificação, usado depois para retirá-la.
+func notify(title: String, body: String, actions: [String]) throws -> UInt32 {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/gdbus")
+    process.arguments = [
+        "call", "--session",
+        "--dest", "org.freedesktop.Notifications",
+        "--object-path", "/org/freedesktop/Notifications",
+        "--method", "org.freedesktop.Notifications.Notify",
+        "WakeUpeer", "0", "", title, body,
+        "['abrir','Abrir agora','adiar','Agora não']",
+        "{}", "0",
+    ]
+    // …ler a saída e extrair o id
+}
+```
+
+Para **receber** a resposta é preciso escutar o sinal `ActionInvoked`, o que exige um processo vivo:
+
+```sh
+gdbus monitor --session --dest org.freedesktop.Notifications
+```
+
+Leia a saída linha a linha e converta em chamadas ao `AnswerSink`. É menos elegante que uma ligação nativa, mas não acrescenta dependência de compilação e funciona em qualquer distribuição.
+
+### Suspensão e retomada
+
+`org.freedesktop.login1` emite `PrepareForSleep` com um booleano: `true` antes de suspender, `false` ao retomar.
+
+```sh
+gdbus monitor --session=false --system \
+  --dest org.freedesktop.login1 \
+  --object-path /org/freedesktop/login1
+```
+
+**A escolha do relógio importa mais no Linux que no macOS.** `ContinuousClock` do Swift mapeia para `CLOCK_BOOTTIME`, que conta o tempo suspenso — é o que este app precisa. O primo `SuspendingClock` mapeia para `CLOCK_MONOTONIC`, que **para durante a suspensão**: usá-lo faria uma noite inteira aparecer como poucos segundos.
+
+Descendo ao POSIX, quando quiser controle explícito:
+
+```swift
+var ts = timespec()
+clock_gettime(CLOCK_BOOTTIME, &ts)   // conta suspensão
+// clock_gettime(CLOCK_MONOTONIC, &ts) — NÃO conta
+```
+
+No macOS os dois se comportam quase igual para este caso, então um erro aqui só aparece no Linux. Veja [armadilhas](#armadilhas).
+
+### Início automático
+
+Um arquivo `.desktop` em `~/.config/autostart/` é o caminho mais compatível entre ambientes:
+
+```ini
+[Desktop Entry]
+Type=Application
+Name=WakeUpeer
+Exec=/usr/local/bin/wakeupeer daemon
+X-GNOME-Autostart-enabled=true
+```
+
+Uma unidade de usuário do systemd (`systemctl --user enable wakeupeer`) dá reinício automático e registro de log, ao custo de depender do systemd. Para um daemon que deve sobreviver a falhas, compensa.
+
 ### Interface
 
 Sem SwiftUI, as opções realistas:
 
 | Abordagem | Prós | Contras |
 |---|---|---|
+| **CLI + daemon** | Simples, útil desde cedo | Sem painel |
 | **GTK4 via gir2swift** | Nativo, bandeja funciona | Ligações Swift imaturas |
 | **Qt via ligação C** | Maduro, bandeja consistente | Interoperar C++ com Swift é trabalhoso |
 | **Servidor local + navegador** | Reaproveita conceitos da UI atual | Não é bandeja de verdade |
-| **Só CLI + daemon** | Simples, rápido de ter | Sem painel |
 
-Para um primeiro porte útil, **CLI mais daemon** entrega valor rápido: o daemon roda o `Orchestrator` e as notificações D-Bus fazem a pergunta; a CLI mostra estado e dispara perfis. A bandeja vem depois.
+Para um primeiro porte útil, **CLI mais daemon** entrega valor rápido: o daemon avalia os perfis e as notificações D-Bus fazem a pergunta; a CLI mostra estado e dispara perfis. A bandeja vem depois, se vier.
+
+Vale saber que o ícone de bandeja está em situação parecida com a do app em foco: o GNOME removeu o suporte nativo e exige extensão, enquanto KDE e XFCE mantêm via `StatusNotifierItem`. Mais um motivo para não começar por aí.
 
 ---
 
@@ -252,26 +376,113 @@ Para um primeiro porte útil, **CLI mais daemon** entrega valor rápido: o daemo
 | `ForegroundSampler` | `GetForegroundWindow` + `GetWindowThreadProcessId`; ocioso por `GetLastInputInfo` |
 | `SystemEventSource` | `WM_POWERBROADCAST` para suspensão e retomada; `WTSRegisterSessionNotification` para bloqueio |
 
-O Windows é, ironicamente, **mais fácil que o Linux** neste app: `GetForegroundWindow` e `GetLastInputInfo` são APIs estáveis e sem ambiguidade, enquanto no Linux o mesmo depende do compositor.
-
-### Interface
-
-- **WinUI 3** é o caminho nativo, com ícone de bandeja pelo `Shell_NotifyIcon` clássico.
-- Interoperar Swift com WinRT dá trabalho; avalie um executável auxiliar em C# só para a interface, conversando com o núcleo Swift por um protocolo simples (stdin/stdout em JSON, ou um named pipe).
+O Windows é, ironicamente, **mais fácil que o Linux** neste app: `GetForegroundWindow` e `GetLastInputInfo` são APIs estáveis, documentadas e sem ambiguidade, enquanto no Linux o mesmo depende do compositor — e no Wayland sequer existe caminho padrão.
 
 ### Interoperação com Win32
 
-Swift no Windows importa as APIs do sistema:
+Swift importa as APIs do sistema por `WinSDK`:
 
 ```swift
 import WinSDK
+import Foundation
 
-let hwnd = GetForegroundWindow()
-var pid: DWORD = 0
-GetWindowThreadProcessId(hwnd, &pid)
+/// Qual processo está em primeiro plano.
+func foregroundProcessID() -> DWORD? {
+    let window = GetForegroundWindow()
+    guard window != nil else { return nil }
+    var pid: DWORD = 0
+    GetWindowThreadProcessId(window, &pid)
+    return pid == 0 ? nil : pid
+}
+
+/// Segundos desde a última entrada do usuário — o equivalente ao
+/// CGEventSource do macOS, e sem exigir permissão nenhuma.
+func idleSeconds() -> TimeInterval {
+    var info = LASTINPUTINFO()
+    info.cbSize = UInt32(MemoryLayout<LASTINPUTINFO>.size)
+    guard GetLastInputInfo(&info) else { return 0 }
+    // GetTickCount64 dá o tempo desde o boot: é monotônico, o que serve
+    // também para medir suspensão sem depender do relógio de parede.
+    return TimeInterval(GetTickCount64() - UInt64(info.dwTime)) / 1000
+}
 ```
 
-Funciona, mas as conversões de tipo (`LPWSTR`, `HANDLE`, wide strings) são verbosas. Encapsule cada API numa função Swift pequena e testável, em vez de espalhar chamadas Win32 pela lógica.
+Duas asperezas previsíveis:
+
+**Strings largas.** A API do Windows usa UTF-16. Converter exige cuidado nas duas direções:
+
+```swift
+extension String {
+    /// Para passar a uma API que espera LPCWSTR.
+    var wide: [WCHAR] { Array(utf16) + [0] }
+
+    /// Para ler o que uma API devolveu.
+    init(fromWide buffer: [WCHAR]) {
+        self = String(decoding: buffer.prefix { $0 != 0 }, as: UTF16.self)
+    }
+}
+```
+
+**Tipos opacos.** `HANDLE`, `HWND` e afins chegam como ponteiros opcionais; verifique antes de usar. Encapsule cada chamada Win32 numa função Swift pequena, como nos exemplos acima, em vez de espalhar interoperação pela lógica — isso mantém a parte testável separada da parte que só roda no Windows.
+
+### Identificar o aplicativo
+
+Onde o macOS tem `bundleIdentifier`, o Windows oferece o caminho do executável:
+
+```swift
+func executablePath(of pid: DWORD) -> String? {
+    guard let process = OpenProcess(
+        DWORD(PROCESS_QUERY_LIMITED_INFORMATION), false, pid) else { return nil }
+    defer { CloseHandle(process) }
+
+    var size = DWORD(MAX_PATH)
+    var buffer = [WCHAR](repeating: 0, count: Int(size))
+    guard QueryFullProcessImageNameW(process, 0, &buffer, &size) else { return nil }
+    return String(fromWide: buffer)
+}
+```
+
+Use o caminho normalizado em minúsculas como `bundleID` — estável entre execuções, que é tudo o que o domínio exige. Para apps da Loja, o AUMID é mais correto, mas obtê-lo dá bem mais trabalho e só vale se você usar esses apps nos perfis.
+
+### Interface
+
+**Recomendação: não escreva a interface em Swift.** Interoperar Swift com WinRT é possível mas custoso, e a UI é justamente a parte que não se beneficia de compartilhar código com o macOS.
+
+O caminho mais direto é separar em dois processos:
+
+```
+wakeupeer-core.exe   Swift — domínio, portas, decisão, rastreamento
+        ↕            JSON por stdin/stdout ou named pipe
+WakeUpeer.exe        C# + WinUI 3 — bandeja, painel, preferências
+```
+
+Cada lado faz o que faz bem, e o protocolo entre eles é pequeno: estado atual, disparar perfil, responder pergunta, pedir relatório. A alternativa monolítica seria Win32 puro pelo Swift — viável para uma bandeja simples com `Shell_NotifyIcon`, desconfortável para o painel e o relatório.
+
+Se quiser começar sem interface nenhuma, veja a [ordem de implementação](#ordem-de-implementação): na etapa 3 o porte já é utilizável por linha de comando.
+
+### Início automático
+
+Duas opções, com trocas diferentes:
+
+| Como | Prós | Contras |
+|---|---|---|
+| `HKCU\…\CurrentVersion\Run` | Simples, sem privilégio de administrador | Sem controle de atraso ou condições |
+| Agendador de Tarefas | Gatilho no logon com atraso, sobrevive melhor a atualizações | API mais pesada, ou depende do `schtasks.exe` |
+
+Para este app o registro basta. O `LoginItemStatus.requiresApproval` não tem equivalente no Windows — nunca o retorne; use `.enabled` ou `.notRegistered`.
+
+### Suspensão e retomada
+
+`WM_POWERBROADCAST` chega a uma janela, então é preciso uma janela — ainda que invisível, criada só para receber mensagens (*message-only window*, com `HWND_MESSAGE` como pai).
+
+```
+PBT_APMSUSPEND        → .willSleep
+PBT_APMRESUMEAUTOMATIC → .didWake
+```
+
+**Meça a suspensão com `GetTickCount64`**, que conta desde o boot e não é afetado por ajuste de hora. A diferença entre dois `Date` daria uma suspensão fantasma sempre que o Windows sincronizasse o relógio — e uma suspensão fantasma faz o app abrir seu ambiente de trabalho sem motivo.
+
+Para bloqueio e desbloqueio de sessão, `WTSRegisterSessionNotification` entrega `WTS_SESSION_LOCK` e `WTS_SESSION_UNLOCK` à mesma janela.
 
 ---
 
@@ -328,7 +539,18 @@ O último é o mais importante e o mais esquecido.
 
 ## Armadilhas
 
-**Medir sono com `Date`.** O erro mais provável do porte inteiro. Sincronização de hora salta o relógio, e um salto de horas é indistinguível de uma noite de sono. Use `ContinuousClock`.
+**Medir sono com `Date`.** O erro mais provável do porte inteiro. Sincronização de hora salta o relógio, e um salto de horas é indistinguível de uma noite de sono. Use um relógio monotônico.
+
+**Escolher o relógio monotônico errado.** Swift tem dois, e os nomes são o oposto do que a intuição sugere:
+
+| Relógio | Durante a suspensão | Linux |
+|---|---|---|
+| `ContinuousClock` | **continua contando** | `CLOCK_BOOTTIME` |
+| `SuspendingClock` | **para junto** | `CLOCK_MONOTONIC` |
+
+Para medir quanto tempo a máquina ficou suspensa, o certo é `ContinuousClock` — o nome descreve o relógio, não o sistema. Usar `SuspendingClock` faria uma noite inteira aparecer como poucos segundos, e o perfil da manhã nunca seria oferecido.
+
+A armadilha é que **no macOS os dois se comportam quase igual** para este caso, então um erro aqui passa despercebido até o porte para Linux. Se descer ao POSIX, o par é `CLOCK_BOOTTIME` (conta suspensão) contra `CLOCK_MONOTONIC` (não conta); no Windows, `GetTickCount64` já inclui o tempo suspenso.
 
 **Lançar apps em paralelo.** Trava o ambiente gráfico e faz apps pesados falharem em arranque frio. Sequencial, com pausa.
 
