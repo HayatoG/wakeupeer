@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import WakeUpeerDomain
 
@@ -13,8 +14,30 @@ struct WakeUpeerApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        Settings {
+        // Janela própria em vez da cena Settings: num app LSUIElement o
+        // openSettings() abre atrás de tudo ou simplesmente não aparece.
+        Window("Preferências do WakeUpeer", id: WindowID.preferences) {
             PreferencesView(state: state)
         }
+        .windowResizability(.contentSize)
+        .defaultPosition(.center)
+
+        Window("Relatório de uso", id: WindowID.report) {
+            ReportView(state: state)
+        }
+        .defaultSize(width: 820, height: 640)
+        .defaultPosition(.center)
     }
+}
+
+enum WindowID {
+    static let preferences = "preferences"
+    static let report = "report"
+}
+
+/// Traz a janela para frente. Sem isto, um app sem Dock abre janelas atrás
+/// do app que estava em foco.
+@MainActor
+func activateApp() {
+    NSApp.activate(ignoringOtherApps: true)
 }

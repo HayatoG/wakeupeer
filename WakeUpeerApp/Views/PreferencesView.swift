@@ -27,6 +27,19 @@ private struct GeneralTab: View {
     var body: some View {
         Form {
             Section {
+                Toggle(
+                    "Iniciar junto com o macOS",
+                    isOn: Binding(
+                        get: { state.loginItemStatus == .enabled },
+                        set: { enabled in Task { await state.setLaunchAtLogin(enabled) } }
+                    ))
+
+                loginItemStatusRow
+            } header: {
+                Text("Início automático")
+            }
+
+            Section {
                 LabeledContent("Threshold de wake") {
                     Text("\(state.config.wakeThresholdHours, format: .number) h")
                 }
@@ -66,6 +79,47 @@ private struct GeneralTab: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    /// O registro de login falha em silêncio quando o app está fora de
+    /// /Applications ou quando o usuário desativou nos Ajustes do Sistema —
+    /// os dois casos precisam ficar visíveis.
+    @ViewBuilder
+    private var loginItemStatusRow: some View {
+        switch state.loginItemStatus {
+        case .requiresApproval:
+            HStack(spacing: 8) {
+                Label(
+                    "Você desativou o WakeUpeer nos Ajustes do Sistema.",
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .font(.caption)
+                .foregroundStyle(.orange)
+
+                Spacer()
+
+                Button("Abrir Ajustes") {
+                    Task { await state.openLoginItemSettings() }
+                }
+                .controlSize(.small)
+            }
+
+        case .unavailable(let reason):
+            Label(reason, systemImage: "xmark.circle.fill")
+                .font(.caption)
+                .foregroundStyle(.red)
+
+        case .enabled, .notRegistered:
+            if !state.isInStableLocation {
+                Label(
+                    "Mova o app para /Applications — fora de lá o início automático não se mantém.",
+                    systemImage: "info.circle.fill"
+                )
+                .font(.caption)
+                .foregroundStyle(.orange)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     private var holidayBehaviorLabel: String {

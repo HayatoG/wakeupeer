@@ -12,6 +12,7 @@
 		4BB9CB98A6264464B26F575A /* WakeUpeerDomain in Frameworks */ = {isa = PBXBuildFile; productRef = 4305CAD2E3FF4247B397385A /* WakeUpeerDomain */; };
 		F4FA1CB3A1C44807941F5A5F /* WakeUpeerPersistence in Frameworks */ = {isa = PBXBuildFile; productRef = B221327F8F5D43AD8E1AE1A8 /* WakeUpeerPersistence */; };
 		150C542CE7F74EFCA4818C10 /* WakeUpeerPlatformMac in Frameworks */ = {isa = PBXBuildFile; productRef = 549804011C91489DBBEDE99B /* WakeUpeerPlatformMac */; };
+		561CF26059F043B795A83498 /* ReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23BFB508F1F142BE832ED557 /* ReportView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -22,6 +23,7 @@
 		B665AA3576B6415E83E32433 /* PopoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverView.swift; sourceTree = "<group>"; };
 		3793D3F5714A44E4A1827C2F /* PreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesView.swift; sourceTree = "<group>"; };
 		AE3ECCAED8564E3182A6908D /* WakeUpeerCore */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = WakeUpeerCore; sourceTree = "<group>"; };
+		23BFB508F1F142BE832ED557 /* ReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,6 +71,7 @@
 		4828942D8671420695563E79 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				23BFB508F1F142BE832ED557 /* ReportView.swift */,
 				B665AA3576B6415E83E32433 /* PopoverView.swift */,
 				3793D3F5714A44E4A1827C2F /* PreferencesView.swift */,
 			);
@@ -143,6 +146,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				561CF26059F043B795A83498 /* ReportView.swift in Sources */,
 				CA64E75EA5DF4E85BA799BB6 /* WakeUpeerApp.swift in Sources */,
 				BF5DE64F2C7245A383F11B25 /* AppState.swift in Sources */,
 				D55135B1A89B4F98A3B4AF3B /* PopoverView.swift in Sources */,
