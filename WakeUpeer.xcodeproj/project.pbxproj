@@ -1,0 +1,275 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		CA64E75EA5DF4E85BA799BB6 /* WakeUpeerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81022321FFB84A32AE306281 /* WakeUpeerApp.swift */; };
+		BF5DE64F2C7245A383F11B25 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6E73E8D7C5042C586B3A2C4 /* AppState.swift */; };
+		D55135B1A89B4F98A3B4AF3B /* PopoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B665AA3576B6415E83E32433 /* PopoverView.swift */; };
+		C296F95EC3994CD1A4812178 /* PreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3793D3F5714A44E4A1827C2F /* PreferencesView.swift */; };
+		4BB9CB98A6264464B26F575A /* WakeUpeerDomain in Frameworks */ = {isa = PBXBuildFile; productRef = 4305CAD2E3FF4247B397385A /* WakeUpeerDomain */; };
+		F4FA1CB3A1C44807941F5A5F /* WakeUpeerPersistence in Frameworks */ = {isa = PBXBuildFile; productRef = B221327F8F5D43AD8E1AE1A8 /* WakeUpeerPersistence */; };
+		150C542CE7F74EFCA4818C10 /* WakeUpeerPlatformMac in Frameworks */ = {isa = PBXBuildFile; productRef = 549804011C91489DBBEDE99B /* WakeUpeerPlatformMac */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A9504AEC30C34CF99145F924 /* WakeUpeer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WakeUpeer.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		759DFF27992D4ACDAF2A2F56 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		81022321FFB84A32AE306281 /* WakeUpeerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WakeUpeerApp.swift; sourceTree = "<group>"; };
+		D6E73E8D7C5042C586B3A2C4 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		B665AA3576B6415E83E32433 /* PopoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverView.swift; sourceTree = "<group>"; };
+		3793D3F5714A44E4A1827C2F /* PreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesView.swift; sourceTree = "<group>"; };
+		AE3ECCAED8564E3182A6908D /* WakeUpeerCore */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = WakeUpeerCore; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		912D318F3B014694A6DAF11D = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4BB9CB98A6264464B26F575A /* WakeUpeerDomain in Frameworks */,
+				F4FA1CB3A1C44807941F5A5F /* WakeUpeerPersistence in Frameworks */,
+				150C542CE7F74EFCA4818C10 /* WakeUpeerPlatformMac in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		26B15014D761488FA19C8007 = {
+			isa = PBXGroup;
+			children = (
+				AE3ECCAED8564E3182A6908D /* WakeUpeerCore */,
+				25D4920B2BC34CFA8BB35E78 /* WakeUpeerApp */,
+				F3A7C8E351784200A611B813 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		F3A7C8E351784200A611B813 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A9504AEC30C34CF99145F924 /* WakeUpeer.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		25D4920B2BC34CFA8BB35E78 /* WakeUpeerApp */ = {
+			isa = PBXGroup;
+			children = (
+				81022321FFB84A32AE306281 /* WakeUpeerApp.swift */,
+				D6E73E8D7C5042C586B3A2C4 /* AppState.swift */,
+				4828942D8671420695563E79 /* Views */,
+				759DFF27992D4ACDAF2A2F56 /* Info.plist */,
+			);
+			path = WakeUpeerApp;
+			sourceTree = "<group>";
+		};
+		4828942D8671420695563E79 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				B665AA3576B6415E83E32433 /* PopoverView.swift */,
+				3793D3F5714A44E4A1827C2F /* PreferencesView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		0E8D965E04B04F57B6B08723 /* WakeUpeer */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 65ACE3EAEFFF4C7DB5B89805;
+			buildPhases = (
+				E4345FD617544482A84FEE72,
+				912D318F3B014694A6DAF11D,
+				1E0C1EF2145446E795172BF9,
+			);
+			buildRules = ();
+			dependencies = ();
+			name = WakeUpeer;
+			packageProductDependencies = (
+				4305CAD2E3FF4247B397385A /* WakeUpeerDomain */,
+				B221327F8F5D43AD8E1AE1A8 /* WakeUpeerPersistence */,
+				549804011C91489DBBEDE99B /* WakeUpeerPlatformMac */,
+			);
+			productName = WakeUpeer;
+			productReference = A9504AEC30C34CF99145F924 /* WakeUpeer.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		20472B655B5B4C55B00CC57C /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2700;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					0E8D965E04B04F57B6B08723 = { CreatedOnToolsVersion = 27.0; };
+				};
+			};
+			buildConfigurationList = 9BF5AEFA2648415987372FAE;
+			compatibilityVersion = "Xcode 15.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = ( en, Base, "pt-BR" );
+			mainGroup = 26B15014D761488FA19C8007;
+			packageReferences = (
+				ADAC657C434C40A9B4DAF73B /* XCLocalSwiftPackageReference "WakeUpeerCore" */,
+			);
+			productRefGroup = F3A7C8E351784200A611B813 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				0E8D965E04B04F57B6B08723 /* WakeUpeer */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		1E0C1EF2145446E795172BF9 = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		E4345FD617544482A84FEE72 = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CA64E75EA5DF4E85BA799BB6 /* WakeUpeerApp.swift in Sources */,
+				BF5DE64F2C7245A383F11B25 /* AppState.swift in Sources */,
+				D55135B1A89B4F98A3B4AF3B /* PopoverView.swift in Sources */,
+				C296F95EC3994CD1A4812178 /* PreferencesView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		0DC2EE06FC8849AB95A3272D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = "NO";
+				CLANG_ENABLE_OBJC_ARC = "YES";
+				COPY_PHASE_STRIP = "NO";
+				DEBUG_INFORMATION_FORMAT = "dwarf";
+				ENABLE_STRICT_OBJC_MSGSEND = "YES";
+				ENABLE_TESTABILITY = "YES";
+				GCC_NO_COMMON_BLOCKS = "YES";
+				GCC_OPTIMIZATION_LEVEL = "0";
+				MACOSX_DEPLOYMENT_TARGET = "14.0";
+				ONLY_ACTIVE_ARCH = "YES";
+				SDKROOT = "macosx";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = "6.0";
+			};
+			name = Debug;
+		};
+		976700AD47644FF0A9AFCFA4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = "NO";
+				CLANG_ENABLE_OBJC_ARC = "YES";
+				COPY_PHASE_STRIP = "NO";
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = "NO";
+				ENABLE_STRICT_OBJC_MSGSEND = "YES";
+				GCC_NO_COMMON_BLOCKS = "YES";
+				MACOSX_DEPLOYMENT_TARGET = "14.0";
+				SDKROOT = "macosx";
+				SWIFT_COMPILATION_MODE = "wholemodule";
+				SWIFT_VERSION = "6.0";
+			};
+			name = Release;
+		};
+		C1BA446DEE0942C78B8BDB8C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon";
+				CODE_SIGN_STYLE = "Automatic";
+				COMBINE_HIDPI_IMAGES = "YES";
+				CURRENT_PROJECT_VERSION = "1";
+				ENABLE_APP_SANDBOX = "NO";
+				ENABLE_HARDENED_RUNTIME = "YES";
+				GENERATE_INFOPLIST_FILE = "NO";
+				INFOPLIST_FILE = "WakeUpeerApp/Info.plist";
+				MARKETING_VERSION = "0.1.0";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.guilherme.WakeUpeer";
+				PRODUCT_NAME = "WakeUpeer";
+				SWIFT_EMIT_LOC_STRINGS = "YES";
+			};
+			name = Debug;
+		};
+		2FA56BB87D8244A3BBE02704 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon";
+				CODE_SIGN_STYLE = "Automatic";
+				COMBINE_HIDPI_IMAGES = "YES";
+				CURRENT_PROJECT_VERSION = "1";
+				ENABLE_APP_SANDBOX = "NO";
+				ENABLE_HARDENED_RUNTIME = "YES";
+				GENERATE_INFOPLIST_FILE = "NO";
+				INFOPLIST_FILE = "WakeUpeerApp/Info.plist";
+				MARKETING_VERSION = "0.1.0";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.guilherme.WakeUpeer";
+				PRODUCT_NAME = "WakeUpeer";
+				SWIFT_EMIT_LOC_STRINGS = "YES";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		9BF5AEFA2648415987372FAE = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0DC2EE06FC8849AB95A3272D /* Debug */,
+				976700AD47644FF0A9AFCFA4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		65ACE3EAEFFF4C7DB5B89805 = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C1BA446DEE0942C78B8BDB8C /* Debug */,
+				2FA56BB87D8244A3BBE02704 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		ADAC657C434C40A9B4DAF73B /* XCLocalSwiftPackageReference "WakeUpeerCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = WakeUpeerCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		4305CAD2E3FF4247B397385A /* WakeUpeerDomain */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WakeUpeerDomain;
+		};
+		B221327F8F5D43AD8E1AE1A8 /* WakeUpeerPersistence */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WakeUpeerPersistence;
+		};
+		549804011C91489DBBEDE99B /* WakeUpeerPlatformMac */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WakeUpeerPlatformMac;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 20472B655B5B4C55B00CC57C /* Project object */;
+}
