@@ -37,8 +37,38 @@ final class AppState {
     /// fechado. Guardar a janela no estado também evita depender de
     /// `NSApp.delegate`, cujo cast falha em silêncio.
     private var reportWindow: NSWindow?
+    private var preferencesWindow: NSWindow?
+
+    /// Avisa a barra de menu para animar o ícone durante o lançamento.
+    var onLaunchingChanged: (@MainActor (Bool) -> Void)?
+
+    /// Fecha o popover quando uma ação dele abre uma janela.
+    var onDismissPopover: (@MainActor () -> Void)?
+
+    func showPreferences() {
+        onDismissPopover?()
+        NSApp.activate(ignoringOtherApps: true)
+
+        if let existing = preferencesWindow {
+            existing.makeKeyAndOrderFront(nil)
+            return
+        }
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 640, height: 520),
+            styleMask: [.titled, .closable, .miniaturizable],
+            backing: .buffered,
+            defer: false)
+        window.title = "Preferências do WakeUpeer"
+        window.center()
+        window.isReleasedWhenClosed = false
+        window.contentView = NSHostingView(rootView: PreferencesView(state: self))
+        window.makeKeyAndOrderFront(nil)
+        preferencesWindow = window
+    }
 
     func showReport() {
+        onDismissPopover?()
         NSApp.activate(ignoringOtherApps: true)
 
         if let existing = reportWindow {
@@ -401,7 +431,11 @@ final class AppState {
 
     private func launch(profile: Profile, windowDay: String, trigger: Trigger) async {
         isLaunching = true
-        defer { isLaunching = false }
+        onLaunchingChanged?(true)
+        defer {
+            isLaunching = false
+            onLaunchingChanged?(false)
+        }
 
         let profileLauncher = ProfileLauncher(
             launcher: launcher,

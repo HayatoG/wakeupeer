@@ -13,6 +13,7 @@
 		F4FA1CB3A1C44807941F5A5F /* WakeUpeerPersistence in Frameworks */ = {isa = PBXBuildFile; productRef = B221327F8F5D43AD8E1AE1A8 /* WakeUpeerPersistence */; };
 		150C542CE7F74EFCA4818C10 /* WakeUpeerPlatformMac in Frameworks */ = {isa = PBXBuildFile; productRef = 549804011C91489DBBEDE99B /* WakeUpeerPlatformMac */; };
 		561CF26059F043B795A83498 /* ReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23BFB508F1F142BE832ED557 /* ReportView.swift */; };
+		B191E087492649949B5C7E22 /* MenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD7B4D4E8E3749E7B9BA4F67 /* MenuBarController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -24,6 +25,7 @@
 		3793D3F5714A44E4A1827C2F /* PreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesView.swift; sourceTree = "<group>"; };
 		AE3ECCAED8564E3182A6908D /* WakeUpeerCore */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = WakeUpeerCore; sourceTree = "<group>"; };
 		23BFB508F1F142BE832ED557 /* ReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportView.swift; sourceTree = "<group>"; };
+		AD7B4D4E8E3749E7B9BA4F67 /* MenuBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -60,6 +62,7 @@
 		25D4920B2BC34CFA8BB35E78 /* WakeUpeerApp */ = {
 			isa = PBXGroup;
 			children = (
+				AD7B4D4E8E3749E7B9BA4F67 /* MenuBarController.swift */,
 				81022321FFB84A32AE306281 /* WakeUpeerApp.swift */,
 				D6E73E8D7C5042C586B3A2C4 /* AppState.swift */,
 				4828942D8671420695563E79 /* Views */,
@@ -146,6 +149,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B191E087492649949B5C7E22 /* MenuBarController.swift in Sources */,
 				561CF26059F043B795A83498 /* ReportView.swift in Sources */,
 				CA64E75EA5DF4E85BA799BB6 /* WakeUpeerApp.swift in Sources */,
 				BF5DE64F2C7245A383F11B25 /* AppState.swift in Sources */,

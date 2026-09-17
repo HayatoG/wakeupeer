@@ -7,20 +7,13 @@ struct WakeUpeerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
     var body: some Scene {
-        MenuBarExtra {
-            PopoverView(state: delegate.state)
-        } label: {
-            Image(systemName: delegate.state.menuBarSymbol)
+        // A barra de menu e as janelas são criadas em AppKit, não como cenas
+        // SwiftUI: MenuBarExtra não expõe o NSStatusItem, e sem ele não há
+        // clique-direito nem ícone animado. Esta cena existe só para
+        // satisfazer o protocolo App — nada é exibido por ela.
+        Settings {
+            EmptyView()
         }
-        .menuBarExtraStyle(.window)
-
-        // Janela própria em vez da cena Settings: num app LSUIElement o
-        // openSettings() abre atrás de tudo ou simplesmente não aparece.
-        Window("Preferências do WakeUpeer", id: WindowID.preferences) {
-            PreferencesView(state: delegate.state)
-        }
-        .windowResizability(.contentSize)
-        .defaultPosition(.center)
     }
 }
 
@@ -30,18 +23,20 @@ struct WakeUpeerApp: App {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     let state = AppState.live()
+    private var menuBar: MenuBarController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        menuBar = MenuBarController(state: state)
+        state.onDismissPopover = { [weak self] in
+            self?.menuBar?.closePopover()
+        }
         Task { await state.bootstrap() }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        menuBar?.tearDown()
         state.shutdown()
     }
-}
-
-enum WindowID {
-    static let preferences = "preferences"
 }
 
 /// Traz a janela para frente. Sem isto, um app sem Dock abre janelas atrás

@@ -6,7 +6,6 @@ import WakeUpeerPlatformMac
 /// O painel que abre ao clicar no ícone da barra.
 struct PopoverView: View {
     @Bindable var state: AppState
-    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(spacing: 0) {
@@ -41,7 +40,7 @@ struct PopoverView: View {
             }
             .scrollBounceBehavior(.basedOnSize)
 
-            FooterView(state: state, openWindow: openWindow)
+            FooterView(state: state)
         }
         .frame(width: 340)
         .frame(maxHeight: 560)
@@ -579,7 +578,6 @@ private struct OtherAppsSection: View {
 
 private struct FooterView: View {
     let state: AppState
-    let openWindow: OpenWindowAction
 
     var body: some View {
         HStack(spacing: 6) {
@@ -612,8 +610,7 @@ private struct FooterView: View {
             }
 
             IconButton(symbol: "gearshape", help: "Preferências") {
-                activateApp()
-                openWindow(id: WindowID.preferences)
+                state.showPreferences()
             }
 
             IconButton(symbol: "power", help: "Sair do WakeUpeer") {
