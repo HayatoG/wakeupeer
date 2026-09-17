@@ -174,6 +174,8 @@ final class AppState {
         await refreshHoliday()
         restorePendingPrompt()
 
+        configWarnings = (store as? FileStateStore)?.lastLoadWarnings ?? []
+        startWatchingConfig()
         loginItemStatus = await loginItem.status()
         refreshCalendars()
         scheduleWeeklyReport()
@@ -229,7 +231,23 @@ final class AppState {
     func shutdown() {
         eventTask?.cancel()
         weeklyReportTask?.cancel()
+        configWatcher?.stop()
         tracker.stop()
+    }
+
+    // MARK: - Recarregar ao editar o arquivo
+
+    private var configWatcher: FileWatcher?
+
+    /// O config.json continua editável à mão; o app acompanha em vez de
+    /// exigir reinício.
+    private func startWatchingConfig() {
+        let url = configDirectory.appendingPathComponent("config.json")
+        let watcher = FileWatcher(url: url) { [weak self] in
+            Task { @MainActor in self?.reloadConfig() }
+        }
+        watcher.start()
+        configWatcher = watcher
     }
 
     /// Respeita a retenção configurada, apagando os arquivos mensais antigos.
@@ -374,6 +392,13 @@ final class AppState {
         await launch(profile: profile, windowDay: windowDay, trigger: .manual)
     }
 
+    /// Abre um item só, para quando você fechou um app sem querer e não
+    /// quer disparar o perfil inteiro de novo.
+    func launchSingle(_ item: ProfileItem) async {
+        _ = await launcher.launch(item)
+        await refreshRunningApps()
+    }
+
     private func launch(profile: Profile, windowDay: String, trigger: Trigger) async {
         isLaunching = true
         defer { isLaunching = false }
@@ -416,9 +441,14 @@ final class AppState {
 
     // MARK: - Configuração
 
+    /// Avisos da última leitura do config: perfis descartados, formato de
+    /// versão futura. Ficam visíveis nas Preferências.
+    private(set) var configWarnings: [String] = []
+
     func reloadConfig() {
         do {
             config = try store.loadConfig()
+            configWarnings = (store as? FileStateStore)?.lastLoadWarnings ?? []
             tracker.update(config: config.tracking)
             storeError = nil
         } catch {
@@ -428,6 +458,9 @@ final class AppState {
 
     func save(config newConfig: AppConfig) {
         config = newConfig
+        // A própria gravação dispara o observador; silenciá-lo evita um
+        // recarregamento em eco a cada tecla nas Preferências.
+        configWatcher?.mute()
         do {
             try store.saveConfig(newConfig)
             tracker.update(config: newConfig.tracking)

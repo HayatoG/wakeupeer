@@ -278,7 +278,8 @@ private struct ProfileItemsSection: View {
                         isRunning: state.isRunning(item),
                         isFocused: isFocused(item),
                         timeToday: state.timeToday(item),
-                        showsTime: state.isTrackingEnabled)
+                        showsTime: state.isTrackingEnabled,
+                        onLaunch: { Task { await state.launchSingle(item) } })
                 }
             }
             .id(state.tick)
@@ -301,6 +302,9 @@ private struct ItemRow: View {
     let isFocused: Bool
     let timeToday: TimeInterval
     let showsTime: Bool
+    let onLaunch: () -> Void
+
+    @State private var isHovering = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -311,6 +315,18 @@ private struct ItemRow: View {
                 .foregroundStyle(isRunning ? .primary : .secondary)
 
             Spacer(minLength: 8)
+
+            // Abrir um item só, para quando um app foi fechado sem querer.
+            if isHovering, !isRunning {
+                Button(action: onLaunch) {
+                    Image(systemName: "arrow.up.forward.circle.fill")
+                        .font(.system(size: 13))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.tint)
+                .help("Abrir \(item.item.displayName)")
+                .transition(.opacity)
+            }
 
             if showsTime, timeToday >= 60 {
                 Text(DurationFormat.short(timeToday))
@@ -333,8 +349,15 @@ private struct ItemRow: View {
         .padding(.vertical, 6)
         .background(
             RoundedRectangle(cornerRadius: 7)
-                .fill(isRunning ? Color.primary.opacity(0.045) : .clear))
+                .fill(rowBackground))
+        .onHover { isHovering = $0 }
         .animation(.snappy(duration: 0.2), value: isRunning)
+        .animation(.snappy(duration: 0.15), value: isHovering)
+    }
+
+    private var rowBackground: Color {
+        if isHovering { return .primary.opacity(0.07) }
+        return isRunning ? .primary.opacity(0.045) : .clear
     }
 }
 

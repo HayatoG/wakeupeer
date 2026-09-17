@@ -79,6 +79,9 @@ public final class FileStateStore: StateStore, @unchecked Sendable {
 
     // MARK: - Config
 
+    /// Avisos da última leitura: perfis descartados, formato futuro, etc.
+    public private(set) var lastLoadWarnings: [String] = []
+
     /// Cria a configuração padrão no primeiro lançamento em vez de falhar.
     public func loadConfig() throws -> AppConfig {
         try queue.sync {
@@ -87,13 +90,29 @@ public final class FileStateStore: StateStore, @unchecked Sendable {
                 try writeConfig(fresh)
                 return fresh
             }
+
             let data = try Data(contentsOf: configURL)
             do {
-                return try Self.makeDecoder().decode(AppConfig.self, from: data)
+                let result = try ConfigMigration.decode(data, decoder: Self.makeDecoder())
+                lastLoadWarnings = result.warnings
+
+                // Uma migração reescreve o arquivo, mas só depois de guardar
+                // o original — se a conversão estiver errada, os dados ainda
+                // estão lá para recuperar à mão.
+                if case .migrated(let from) = result.outcome {
+                    try? backupConfig(data, suffix: "v\(from)")
+                    try writeConfig(result.config)
+                }
+                return result.config
             } catch {
                 throw StoreError.unreadableConfig(String(describing: error))
             }
         }
+    }
+
+    private func backupConfig(_ data: Data, suffix: String) throws {
+        let url = root.appendingPathComponent("config.backup-\(suffix).json")
+        try data.write(to: url, options: .atomic)
     }
 
     public func saveConfig(_ config: AppConfig) throws {
