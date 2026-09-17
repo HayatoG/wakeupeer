@@ -316,16 +316,22 @@ private struct ItemRow: View {
             Spacer(minLength: 8)
 
             // Abrir um item só, para quando um app foi fechado sem querer.
-            if isHovering, !isRunning {
-                Button(action: onLaunch) {
-                    Image(systemName: "arrow.up.forward.circle.fill")
-                        .font(.system(size: 13))
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.tint)
-                .help("Abrir \(item.item.displayName)")
-                .transition(.opacity)
+            //
+            // O botão ocupa lugar mesmo invisível. Inseri-lo e removê-lo
+            // conforme o cursor refluía a linha, o que podia tirar o mouse
+            // de cima dela: o hover caía, o botão sumia, a linha voltava ao
+            // tamanho antigo e o ciclo recomeçava — a linha tremia e não
+            // dava para clicar.
+            Button(action: onLaunch) {
+                Image(systemName: "arrow.up.forward.circle.fill")
+                    .font(.system(size: 13))
             }
+            .buttonStyle(.plain)
+            .foregroundStyle(.tint)
+            .help("Abrir \(item.item.displayName)")
+            .opacity(showsLaunchButton ? 1 : 0)
+            .allowsHitTesting(showsLaunchButton)
+            .accessibilityHidden(!showsLaunchButton)
 
             if showsTime, timeToday >= 60 {
                 Text(DurationFormat.short(timeToday))
@@ -349,10 +355,17 @@ private struct ItemRow: View {
         .background(
             RoundedRectangle(cornerRadius: 7)
                 .fill(rowBackground))
+        // Sem isto, os vãos entre os elementos não contam como hover e a
+        // linha pisca quando o cursor passa por eles.
+        .contentShape(.rect)
         .onHover { isHovering = $0 }
         .animation(.snappy(duration: 0.2), value: isRunning)
+        // Só o fundo anima. Animar a opacidade do botão devolveria o
+        // tremor, porque o valor intermediário reagenda o layout.
         .animation(.snappy(duration: 0.15), value: isHovering)
     }
+
+    private var showsLaunchButton: Bool { isHovering && !isRunning }
 
     private var rowBackground: Color {
         if isHovering { return .primary.opacity(0.07) }
