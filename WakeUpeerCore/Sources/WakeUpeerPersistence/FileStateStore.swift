@@ -240,12 +240,30 @@ public final class FileStateStore: StateStore, @unchecked Sendable {
 // MARK: - Local padrão no macOS
 
 extension FileStateStore {
-    /// `~/Library/Application Support/WakeUpeer` no macOS.
-    /// No Linux isto viraria `~/.config/wakeupeer`.
+    /// Diretório de dados conforme a convenção de cada plataforma:
+    /// `~/Library/Application Support/WakeUpeer` no macOS,
+    /// `$XDG_CONFIG_HOME/wakeupeer` no Linux e `%APPDATA%\WakeUpeer` no Windows.
     public static func defaultRoot(fileManager: FileManager = .default) -> URL {
-        let base = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? fileManager.homeDirectoryForCurrentUser.appendingPathComponent(
-                "Library/Application Support")
-        return base.appendingPathComponent("WakeUpeer", isDirectory: true)
+        let home = fileManager.homeDirectoryForCurrentUser
+
+        #if os(macOS)
+            let base = fileManager.urls(
+                for: .applicationSupportDirectory, in: .userDomainMask
+            ).first ?? home.appendingPathComponent("Library/Application Support")
+            return base.appendingPathComponent("WakeUpeer", isDirectory: true)
+
+        #elseif os(Windows)
+            let base = ProcessInfo.processInfo.environment["APPDATA"]
+                .map { URL(fileURLWithPath: $0) }
+                ?? home.appendingPathComponent("AppData/Roaming")
+            return base.appendingPathComponent("WakeUpeer", isDirectory: true)
+
+        #else
+            // Linux e demais: especificação de diretórios do XDG.
+            let base = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"]
+                .flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0) }
+                ?? home.appendingPathComponent(".config")
+            return base.appendingPathComponent("wakeupeer", isDirectory: true)
+        #endif
     }
 }
