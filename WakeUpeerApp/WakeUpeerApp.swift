@@ -31,39 +31,8 @@ struct WakeUpeerApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     let state = AppState.live()
 
-    /// Mantida viva enquanto o app roda; é ela que hospeda o relatório
-    /// quando a notificação semanal é tocada.
-    private var reportWindow: NSWindow?
-
     func applicationDidFinishLaunching(_ notification: Notification) {
-        state.onOpenReport = { [weak self] in
-            self?.showReportWindow()
-        }
         Task { await state.bootstrap() }
-    }
-
-    /// Abre o relatório em AppKit puro. Num app sem Dock, `openWindow` do
-    /// SwiftUI só está disponível dentro de uma view viva — e o popover,
-    /// que seria o candidato natural, não existe quando está fechado.
-    func showReportWindow() {
-        activateApp()
-
-        if let existing = reportWindow {
-            existing.makeKeyAndOrderFront(nil)
-            return
-        }
-
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 820, height: 640),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
-            backing: .buffered,
-            defer: false)
-        window.title = "Relatório de uso"
-        window.center()
-        window.isReleasedWhenClosed = false
-        window.contentView = NSHostingView(rootView: ReportView(state: state))
-        window.makeKeyAndOrderFront(nil)
-        reportWindow = window
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -73,7 +42,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
 enum WindowID {
     static let preferences = "preferences"
-    static let report = "report"
 }
 
 /// Traz a janela para frente. Sem isto, um app sem Dock abre janelas atrás

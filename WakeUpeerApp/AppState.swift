@@ -30,9 +30,34 @@ final class AppState {
     /// tempos subirem à vista.
     private(set) var tick = 0
 
-    /// Chamado quando algo pede a janela de relatório — por ora, tocar na
-    /// notificação semanal. O AppDelegate abre a janela em AppKit.
-    var onOpenReport: (@MainActor () -> Void)?
+    /// A janela de relatório é criada em AppKit e mantida viva aqui.
+    ///
+    /// Num app LSUIElement o `openWindow` do SwiftUI só existe dentro de uma
+    /// view viva, e o popover — o candidato natural — não está vivo quando
+    /// fechado. Guardar a janela no estado também evita depender de
+    /// `NSApp.delegate`, cujo cast falha em silêncio.
+    private var reportWindow: NSWindow?
+
+    func showReport() {
+        NSApp.activate(ignoringOtherApps: true)
+
+        if let existing = reportWindow {
+            existing.makeKeyAndOrderFront(nil)
+            return
+        }
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 860, height: 660),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false)
+        window.title = "Relatório de uso"
+        window.center()
+        window.isReleasedWhenClosed = false
+        window.contentView = NSHostingView(rootView: ReportView(state: self))
+        window.makeKeyAndOrderFront(nil)
+        reportWindow = window
+    }
 
     // MARK: Dependências
 
@@ -135,7 +160,7 @@ final class AppState {
         hasBootstrapped = true
 
         notifier.onOpenReport = { [weak self] in
-            Task { @MainActor in self?.onOpenReport?() }
+            Task { @MainActor in self?.showReport() }
         }
 
         // O rastreamento começa primeiro, e sem await: pedir autorização de

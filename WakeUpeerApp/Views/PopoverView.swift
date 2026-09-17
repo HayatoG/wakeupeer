@@ -582,7 +582,10 @@ private struct FooterView: View {
             Spacer(minLength: 0)
 
             IconButton(symbol: "chart.bar", help: "Relatório de uso") {
-                (NSApp.delegate as? AppDelegate)?.showReportWindow()
+                // Chama pelo estado, não por NSApp.delegate: com
+                // @NSApplicationDelegateAdaptor o delegate exposto nem
+                // sempre é a nossa classe, e o cast falha em silêncio.
+                state.showReport()
             }
 
             IconButton(symbol: "gearshape", help: "Preferências") {

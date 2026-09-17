@@ -266,7 +266,8 @@ private struct DailyChart: View {
                 .foregroundStyle(by: .value("Perfil", segment.profileName))
                 .cornerRadius(4)
             }
-            .chartForegroundStyleScale(colorScale)
+            .chartForegroundStyleScale(
+                domain: colorDomain, range: colorRange)
             .chartXAxis {
                 AxisMarks(values: .stride(by: .day)) { value in
                     AxisValueLabel(format: .dateTime.weekday(.abbreviated))
@@ -288,39 +289,15 @@ private struct DailyChart: View {
         }
     }
 
-    /// Cada perfil mantém a mesma cor do popover.
-    private var colorScale: KeyValuePairs<String, Color> {
-        let names = Set(segments.map(\.profileName)).sorted()
-        var pairs: [(String, Color)] = names.map { name in
-            (name, profiles.first { $0.name == name }?.accentColor ?? .gray)
-        }
-        if pairs.isEmpty { pairs = [("Sem perfil", .gray)] }
-        return KeyValuePairs(pairs: pairs)
+    /// Cada perfil mantém a mesma cor do popover. Domínio e faixa são
+    /// arrays paralelos — sem limite de quantos perfis cabem.
+    private var colorDomain: [String] {
+        Set(segments.map(\.profileName)).sorted()
     }
-}
 
-/// `KeyValuePairs` não tem init a partir de array; este atalho monta
-/// as combinações mais comuns e cai num padrão seguro acima disso.
-extension KeyValuePairs where Key == String, Value == Color {
-    init(pairs: [(String, Color)]) {
-        switch pairs.count {
-        case 0: self = [:]
-        case 1: self = [pairs[0].0: pairs[0].1]
-        case 2: self = [pairs[0].0: pairs[0].1, pairs[1].0: pairs[1].1]
-        case 3:
-            self = [
-                pairs[0].0: pairs[0].1, pairs[1].0: pairs[1].1, pairs[2].0: pairs[2].1,
-            ]
-        case 4:
-            self = [
-                pairs[0].0: pairs[0].1, pairs[1].0: pairs[1].1, pairs[2].0: pairs[2].1,
-                pairs[3].0: pairs[3].1,
-            ]
-        default:
-            self = [
-                pairs[0].0: pairs[0].1, pairs[1].0: pairs[1].1, pairs[2].0: pairs[2].1,
-                pairs[3].0: pairs[3].1, pairs[4].0: pairs[4].1,
-            ]
+    private var colorRange: [Color] {
+        colorDomain.map { name in
+            profiles.first { $0.name == name }?.accentColor ?? .gray
         }
     }
 }
