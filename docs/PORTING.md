@@ -232,6 +232,17 @@ Duas coisas no código atual assumem macOS. Nenhuma impede o porte, mas ambas pr
 
 O `FileStateStore` também aceita o diretório no construtor, então dá para ignorar o auxiliar e passar outro caminho se preferir.
 
+### App sem janela principal
+
+No macOS o `LSUIElement` tira o app do Dock e do alternador: só existe o ícone da barra, e reabrir o app pelo Finder não mostra nada. O equivalente em cada plataforma:
+
+| Plataforma | Como |
+|---|---|
+| Linux | Não registrar janela de topo; `NoDisplay=true` no `.desktop` se não quiser lançador |
+| Windows | Sem janela principal, só o ícone na área de notificação; subsistema `WINDOWS`, não `CONSOLE` |
+
+A consequência vale para as três: **toda a interface precisa ser alcançável pelo ícone da bandeja**, porque não há outro caminho. Se a bandeja falhar em carregar, o app fica invisível e vivo — vale registrar em log o sucesso da criação do ícone e oferecer um comando de CLI que abra o painel.
+
 ### `bundleID` é um conceito da Apple
 
 `LaunchItem.application(bundleID:displayName:path:)` e `TrackingEvent.bundleID` carregam um identificador que só o macOS chama assim.

@@ -55,6 +55,8 @@ De quebra, registra quanto tempo cada app fica em primeiro plano e monta um rela
 
 Nenhuma permissão é obrigatória. Sem notificações, o painel continua sendo o canal da pergunta. Sem calendário, os feriados nacionais continuam sendo detectados.
 
+A de Calendário só é pedida quando você escolhe um calendário na aba Feriados. Com `holidayCalendarIDs` vazio — o padrão — o app usa a tabela embutida e nunca toca no EventKit, então o diálogo não aparece.
+
 ---
 
 ## Instalação
@@ -77,6 +79,8 @@ open /Applications/WakeUpeer.app
 ```
 
 > **O app precisa ficar em `/Applications`.** O `SMAppService` vincula o registro de início automático ao caminho do binário; movê-lo quebra o vínculo em silêncio.
+
+> **Instale o build Release, não o Debug.** O bundle de Debug carrega `WakeUpeer.debug.dylib` e `__preview.dylib` e embute um `LC_RPATH` para o diretório de build, que some quando a pasta é limpa. Se `Contents/MacOS/` tiver mais que o binário `WakeUpeer`, você copiou o bundle errado.
 
 ### Assinatura durante o desenvolvimento
 
@@ -102,6 +106,8 @@ codesign --force --deep --sign "WakeUpeer Dev" /Applications/WakeUpeer.app
 | Preferências | Clique direito → Preferências (⌘,) |
 
 O ícone muda conforme o contexto: símbolo do perfil ativo, período do dia quando não há perfil, um sino quando há pergunta pendente, e pulsa enquanto os apps abrem.
+
+O WakeUpeer é `LSUIElement`: não tem ícone no Dock nem janela principal. Abrir pelo Launchpad ou pelo Finder com ele já rodando não mostra nada — tudo passa pelo ícone da barra de menus.
 
 ---
 
@@ -292,6 +298,9 @@ Verifique Preferências → Geral se o início automático está ativo e se o ap
 
 **A pergunta é de um perfil que já passou.**
 Corrigido: acontecia ao reiniciar com uma pergunta antiga ainda sem resposta — ela era restaurada por cima da pergunta do perfil da vez. Se ainda vir isso, confira a chave `pending` em `fire-log.json`: deve haver no máximo uma entrada, a do perfil atual.
+
+**Clico no app em Aplicativos e nada acontece.**
+É o comportamento esperado. Ele vive na barra de menus, sem Dock nem janela; se já estiver rodando, abrir de novo não tem efeito visível. Procure o ícone na barra — `pgrep -x WakeUpeer` confirma que está ativo.
 
 **As notificações não aparecem.**
 Ajustes do Sistema → Notificações → WakeUpeer. O app precisa estar assinado; rodar por `swift run` não funciona. O painel continua mostrando a pergunta de qualquer forma.
