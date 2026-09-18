@@ -212,6 +212,8 @@ Emite `.didLogin`, `.didWake(sleptFor:)`, `.willSleep`, `.screenLocked`, `.scree
 
 Se não conseguir medir, emita `.didWake(sleptFor: 0)`: o resolver trata como sono curto e não dispara nada, que é o lado seguro.
 
+**Só comece a consumir o stream depois de carregar o feriado e restaurar a pergunta pendente.** O `.didLogin` sai assim que o stream é aberto. No macOS o stream era aberto antes desses dois passos, e a avaliação rodava no meio deles: decidia sem saber do feriado e tinha o prompt sobrescrito pela restauração.
+
 ---
 
 ## Ajustes necessários no código existente
@@ -515,7 +517,7 @@ cd WakeUpeerCore
 swift test --filter 'WakeUpeer(Domain|Persistence)Tests'
 ```
 
-Os 83 testes não dependem de plataforma. Se um falhar em Linux e passar em macOS, é quase certo que a causa está numa das três fontes abaixo, não na sua implementação:
+Os 87 testes não dependem de plataforma. Se um falhar em Linux e passar em macOS, é quase certo que a causa está numa das três fontes abaixo, não na sua implementação:
 
 - **Fuso horário** — o domínio nunca usa `Calendar.current`; se algo usar, o comportamento muda com a máquina.
 - **Ordenação de dicionário** — a iteração não tem ordem garantida e varia entre plataformas; o resolver desempata por UUID justamente por isso.
@@ -531,6 +533,8 @@ Para as portas, vale um teste manual roteirizado:
 | Suspender e retomar antes do limite | Nada acontece |
 | Suspender além do limite | A pergunta aparece |
 | Retomar várias vezes no mesmo dia | Uma pergunta só |
+| Ignorar a pergunta da manhã e reiniciar na janela do perfil seguinte | A pergunta é a do perfil seguinte; a antiga some do `fire-log.json` |
+| Disparar na mão um perfil com pergunta aberta | A pergunta e a notificação somem |
 | Ajustar o relógio do sistema para frente | Nenhum disparo (prova o relógio monotônico) |
 
 O último é o mais importante e o mais esquecido.
@@ -561,6 +565,8 @@ A armadilha é que **no macOS os dois se comportam quase igual** para este caso,
 **Assumir que o dia da janela é o dia do relógio.** Numa janela que atravessa a meia-noite, o dia de referência é o do **início**. Confundir os dois faz o perfil disparar duas vezes. Os testes cobrem isso — confie neles.
 
 **Usar `Calendar.current` no domínio.** Quebra os testes de fuso e faz o comportamento depender da máquina. O calendário é sempre injetado.
+
+**Restaurar qualquer pergunta pendente do dia.** Outro bug real do macOS: ao iniciar, o app restaurava a primeira pendência com a data de hoje, sem checar se o perfil ainda valia. Uma pergunta do Trabalho ignorada de manhã reaparecia às 17h13, quando o perfil da vez já era outro. A regra está no domínio — `ProfileResolver.pendingToRestore` só devolve a pendência do perfil que venceria agora — e o porte deve usá-la em vez de ler `fireLog.pending` direto. Mantenha no máximo uma pergunta aberta: a nova aposenta as anteriores, e o disparo manual encerra a do próprio perfil.
 
 **Bloquear na autorização de notificações.** No macOS isso já causou um bug real: o pedido de permissão bloqueia até o usuário responder, e como era a primeira chamada do arranque, o rastreamento nunca começava. Peça autorização em paralelo, nunca no caminho crítico.
 

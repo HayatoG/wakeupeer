@@ -207,6 +207,8 @@ Os casos que costumam dar errado, e como são tratados:
 
 **Feriado.** Em dia útil, pergunta. No fim de semana, silêncio — perguntar seria ruído. Sem permissão de calendário, comporta-se como dia normal: falta de acesso nunca bloqueia o usuário.
 
+**Pergunta que envelheceu.** Só existe uma pergunta aberta por vez, e ela precisa ser a do perfil que venceria *agora*. Ao reiniciar, `ProfileResolver.pendingToRestore` devolve a pergunta pendente apenas se ela for a do vencedor atual; as outras saem do `fire-log.json` e têm a notificação recolhida. Sem isso, uma pergunta do Trabalho ignorada às 9h voltava às 17h13 no lugar da Noite de semana. Pelo mesmo motivo, uma pergunta nova aposenta as anteriores, e disparar um perfil na mão encerra a pergunta que estivesse aberta para ele.
+
 ---
 
 ## Feriados
@@ -270,11 +272,11 @@ O rastreamento guarda identificador e nome do app, não o que você faz nele. T�
 cd WakeUpeerCore && swift test
 ```
 
-83 testes, só no domínio e na persistência — a UI não é testada automaticamente.
+87 testes, só no domínio e na persistência — a UI não é testada automaticamente.
 
 | Área | O que cobre |
 |---|---|
-| `ProfileResolver` | Bordas da janela, virada da meia-noite, sobreposição, tolerância, despertar, feriado |
+| `ProfileResolver` | Bordas da janela, virada da meia-noite, sobreposição, tolerância, despertar, feriado, restauração de pergunta pendente |
 | Fusos | Suíte inteira em São Paulo, UTC, Kiritimati (UTC+14) e Nova York |
 | Horário de verão | A hora que não existe e a que acontece duas vezes |
 | Feriados | Tabela de 2020 a 2035 contra fonte oficial |
@@ -287,6 +289,9 @@ cd WakeUpeerCore && swift test
 
 **O app não pergunta nada de manhã.**
 Verifique Preferências → Geral se o início automático está ativo e se o app está em `/Applications`. Se você só fecha a tampa, o sono precisa passar do limite configurado.
+
+**A pergunta é de um perfil que já passou.**
+Corrigido: acontecia ao reiniciar com uma pergunta antiga ainda sem resposta — ela era restaurada por cima da pergunta do perfil da vez. Se ainda vir isso, confira a chave `pending` em `fire-log.json`: deve haver no máximo uma entrada, a do perfil atual.
 
 **As notificações não aparecem.**
 Ajustes do Sistema → Notificações → WakeUpeer. O app precisa estar assinado; rodar por `swift run` não funciona. O painel continua mostrando a pergunta de qualquer forma.

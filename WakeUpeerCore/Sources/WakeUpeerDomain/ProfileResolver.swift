@@ -116,6 +116,16 @@ public enum ProfileResolver {
         return applyHolidayPolicy(to: winner, input: input)
     }
 
+    /// Das perguntas em aberto, a única que ainda faz sentido restaurar: a do
+    /// perfil que venceria a resolução neste instante. As outras ficaram
+    /// velhas — a janela passou ou outro perfil assumiu — e restaurá-las faz o
+    /// app perguntar pelo Trabalho às 17h13, quando quem manda já é a Noite.
+    public static func pendingToRestore(_ input: ResolutionInput) -> PendingDecision? {
+        guard let winner = bestCandidate(among: candidates(for: input)) else { return nil }
+        return input.fireLog.pendingDecision(
+            profileID: winner.profile.id, windowDay: winner.windowDay)
+    }
+
     // MARK: Candidatos
 
     static func candidates(for input: ResolutionInput) -> [ProfileCandidate] {

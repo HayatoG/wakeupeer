@@ -198,11 +198,14 @@ final class AppState {
         // sentido o tempo do dia ficar refém dessa resposta.
         tracker.currentProfileID = activeProfile?.id
         tracker.start()
-        observeSystemEvents()
 
         await refreshRunningApps()
         await refreshHoliday()
-        restorePendingPrompt()
+        await restorePendingPrompt()
+        // Só depois de restaurar: o stream entrega `.didLogin` na hora, e a
+        // avaliação rodando no meio dos awaits acima decidia sem saber do
+        // feriado e tinha o prompt sobrescrito pela restauração.
+        observeSystemEvents()
 
         configWarnings = (store as? FileStateStore)?.lastLoadWarnings ?? []
         startWatchingConfig()
@@ -218,10 +221,16 @@ final class AppState {
         }
     }
 
-    /// Se o app foi encerrado com uma pergunta em aberto, ela volta.
-    private func restorePendingPrompt() {
-        let today = ProfileResolver.dayString(clock.now, calendar: clock.calendar)
-        guard let pending = fireLog.pending.first(where: { $0.windowDay == today }),
+    /// Se o app foi encerrado com uma pergunta em aberto, ela volta — desde
+    /// que ainda seja a pergunta certa para agora. As que envelheceram saem
+    /// do log, senão voltariam no lugar do perfil da vez.
+    private func restorePendingPrompt() async {
+        let current = ProfileResolver.pendingToRestore(resolutionInput(trigger: .login))
+        await discardPending { pending in
+            pending.profileID != current?.profileID || pending.windowDay != current?.windowDay
+        }
+
+        guard let pending = current,
               let profile = config.profile(id: pending.profileID)
         else { return }
 
@@ -307,17 +316,7 @@ final class AppState {
     /// Decide se algum perfil deve disparar e, se sim, monta o prompt.
     /// Nada abre sem confirmação do usuário.
     func evaluate(trigger: Trigger, sleepDuration: TimeInterval? = nil) async {
-        let input = ResolutionInput(
-            now: clock.now,
-            calendar: clock.calendar,
-            profiles: config.profiles,
-            holiday: todayHoliday,
-            holidayBehavior: config.holidayBehavior,
-            fireLog: fireLog,
-            trigger: trigger,
-            sleepDuration: sleepDuration,
-            wakeThreshold: config.wakeThreshold
-        )
+        let input = resolutionInput(trigger: trigger, sleepDuration: sleepDuration)
 
         switch ProfileResolver.resolve(input) {
         case .fire(let profile, let windowDay):
@@ -332,6 +331,36 @@ final class AppState {
 
         case .skip:
             break
+        }
+    }
+
+    private func resolutionInput(
+        trigger: Trigger, sleepDuration: TimeInterval? = nil
+    ) -> ResolutionInput {
+        ResolutionInput(
+            now: clock.now,
+            calendar: clock.calendar,
+            profiles: config.profiles,
+            holiday: todayHoliday,
+            holidayBehavior: config.holidayBehavior,
+            fireLog: fireLog,
+            trigger: trigger,
+            sleepDuration: sleepDuration,
+            wakeThreshold: config.wakeThreshold
+        )
+    }
+
+    /// Tira do log as perguntas que casam com o filtro e recolhe as
+    /// notificações delas, para não sobrar botão que abre o perfil errado.
+    private func discardPending(where isDiscarded: (PendingDecision) -> Bool) async {
+        let discarded = fireLog.pending.filter(isDiscarded)
+        guard !discarded.isEmpty else { return }
+
+        fireLog.pending.removeAll(where: isDiscarded)
+        persistFireLog()
+        for pending in discarded {
+            await notifier.withdrawPrompt(
+                profileID: pending.profileID, windowDay: pending.windowDay)
         }
     }
 
@@ -367,6 +396,9 @@ final class AppState {
     }
 
     private func present(_ prompt: Prompt) async {
+        // Um perfil por disparo: a pergunta nova aposenta as anteriores.
+        await discardPending { _ in true }
+
         pendingPrompt = prompt
         fireLog.pending.append(
             PendingDecision(
@@ -419,6 +451,11 @@ final class AppState {
     /// Disparo manual pelo menu, ignorando janela e dedupe.
     func launchManually(profile: Profile) async {
         let windowDay = ProfileResolver.dayString(clock.now, calendar: clock.calendar) ?? ""
+
+        // Abrir na mão responde à pergunta que estivesse aberta para o perfil.
+        if pendingPrompt?.profileID == profile.id { pendingPrompt = nil }
+        await discardPending { $0.profileID == profile.id }
+
         await launch(profile: profile, windowDay: windowDay, trigger: .manual)
     }
 

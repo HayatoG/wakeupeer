@@ -297,6 +297,66 @@ struct DedupeTests {
     }
 }
 
+// MARK: - Restauração de pergunta pendente
+
+@Suite("Restauração de pergunta pendente")
+struct PendingRestoreTests {
+
+    private let cal = makeCalendar()
+    private let work = makeProfile(
+        name: "Trabalho", window: TimeWindow(from: 8, to: 17), priority: 10, graceMinutes: 90)
+    private let evening = makeProfile(
+        name: "Noite de semana", window: TimeWindow(from: 17, to: 23), priority: 5,
+        graceMinutes: 30)
+
+    private func pending(_ profile: Profile, hour: Int) -> PendingDecision {
+        PendingDecision(
+            profileID: profile.id,
+            windowDay: "2026-09-18",
+            askedAt: date(2026, 9, 18, hour, 0, calendar: cal))
+    }
+
+    @Test("Pergunta do Trabalho feita de manhã não volta às 17:13, quando a Noite já assumiu")
+    func stalePendingIsNotRestored() {
+        let log = FireLog(pending: [pending(work, hour: 9)])
+        let restored = ProfileResolver.pendingToRestore(
+            input(
+                now: date(2026, 9, 18, 17, 13, calendar: cal), calendar: cal,
+                profiles: [work, evening], fireLog: log))
+        #expect(restored == nil)
+    }
+
+    @Test("Com duas perguntas abertas, volta a do perfil que vence agora")
+    func restoresCurrentWinner() {
+        let log = FireLog(pending: [pending(work, hour: 9), pending(evening, hour: 17)])
+        let restored = ProfileResolver.pendingToRestore(
+            input(
+                now: date(2026, 9, 18, 17, 13, calendar: cal), calendar: cal,
+                profiles: [work, evening], fireLog: log))
+        #expect(restored?.profileID == evening.id)
+    }
+
+    @Test("Pergunta ainda dentro da janela volta normalmente")
+    func currentPendingIsRestored() {
+        let log = FireLog(pending: [pending(work, hour: 9)])
+        let restored = ProfileResolver.pendingToRestore(
+            input(
+                now: date(2026, 9, 18, 11, 0, calendar: cal), calendar: cal,
+                profiles: [work, evening], fireLog: log))
+        #expect(restored?.profileID == work.id)
+    }
+
+    @Test("Fora de qualquer janela e tolerância, nada volta")
+    func nothingRestoredOutsideWindows() {
+        let log = FireLog(pending: [pending(evening, hour: 17)])
+        let restored = ProfileResolver.pendingToRestore(
+            input(
+                now: date(2026, 9, 18, 23, 45, calendar: cal), calendar: cal,
+                profiles: [work, evening], fireLog: log))
+        #expect(restored == nil)
+    }
+}
+
 // MARK: - Sobreposição
 
 @Suite("Sobreposição de perfis")
