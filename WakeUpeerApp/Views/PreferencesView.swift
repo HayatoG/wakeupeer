@@ -167,12 +167,20 @@ private struct ProfilesTab: View {
     @State private var profileToDelete: Profile?
 
     var body: some View {
-        HSplitView {
+        // HStack, e não HSplitView: o NSSplitView por trás dele salva a
+        // posição das divisórias em disco sob um nome que não controlamos, e
+        // restaurava a geometria de uma versão antiga da janela — 708 pt de
+        // subviews numa janela de 640 — deixando o conteúdo encolhido no
+        // rodapé. A largura da lista sempre foi fixa, então a divisória
+        // arrastável não fazia falta.
+        HStack(spacing: 0) {
             sidebar
-                .frame(minWidth: 180, idealWidth: 200, maxWidth: 260)
+                .frame(width: 200)
+
+            Divider()
 
             detail
-                .frame(minWidth: 380)
+                .frame(minWidth: 380, maxWidth: .infinity, maxHeight: .infinity)
         }
         .confirmationDialog(
             "Apagar “\(profileToDelete?.name ?? "")”?",

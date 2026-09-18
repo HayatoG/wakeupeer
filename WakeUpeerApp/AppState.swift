@@ -45,6 +45,22 @@ final class AppState {
     /// Fecha o popover quando uma ação dele abre uma janela.
     var onDismissPopover: (@MainActor () -> Void)?
 
+    /// Geometria salva por versões anteriores da janela, quando ela era uma
+    /// cena `Settings` com `NavigationSplitView`. O AppKit restaurava esses
+    /// frames — mais largos que a janela atual — e a tela de Perfis abria com
+    /// o conteúdo espremido no rodapé. Limpar uma vez basta; as chaves não
+    /// voltam a ser escritas.
+    private static func purgeStaleWindowGeometry() {
+        let defaults = UserDefaults.standard
+        for key in [
+            "NSSplitView Subview Frames preferences, SidebarNavigationSplitView",
+            "NSWindow Frame preferences",
+            "NSWindow Frame com_apple_SwiftUI_Settings_window",
+        ] where defaults.object(forKey: key) != nil {
+            defaults.removeObject(forKey: key)
+        }
+    }
+
     func showPreferences() {
         onDismissPopover?()
         NSApp.activate(ignoringOtherApps: true)
@@ -188,6 +204,8 @@ final class AppState {
             return
         }
         hasBootstrapped = true
+
+        Self.purgeStaleWindowGeometry()
 
         notifier.onOpenReport = { [weak self] in
             Task { @MainActor in self?.showReport() }

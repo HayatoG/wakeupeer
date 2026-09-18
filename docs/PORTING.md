@@ -568,6 +568,8 @@ A armadilha é que **no macOS os dois se comportam quase igual** para este caso,
 
 **Restaurar qualquer pergunta pendente do dia.** Outro bug real do macOS: ao iniciar, o app restaurava a primeira pendência com a data de hoje, sem checar se o perfil ainda valia. Uma pergunta do Trabalho ignorada de manhã reaparecia às 17h13, quando o perfil da vez já era outro. A regra está no domínio — `ProfileResolver.pendingToRestore` só devolve a pendência do perfil que venceria agora — e o porte deve usá-la em vez de ler `fireLog.pending` direto. Mantenha no máximo uma pergunta aberta: a nova aposenta as anteriores, e o disparo manual encerra a do próprio perfil.
 
+**Deixar o toolkit persistir geometria de janela sem controle.** No macOS o `HSplitView` do SwiftUI salva a posição das divisórias sob uma chave derivada do nome da janela, que o código não escolhe nem consegue desligar. Ao renomear ou reestruturar a janela, a geometria antiga é restaurada sobre a nova e o layout abre quebrado — no caso real, subviews de 708 pt numa janela de 640, com o conteúdo espremido no rodapé. Onde a divisória não precisa ser arrastável, use um contêiner comum com largura fixa; onde precisar, escolha o nome de autosave explicitamente e versione-o.
+
 **Bloquear na autorização de notificações.** No macOS isso já causou um bug real: o pedido de permissão bloqueia até o usuário responder, e como era a primeira chamada do arranque, o rastreamento nunca começava. Peça autorização em paralelo, nunca no caminho crítico.
 
 ---

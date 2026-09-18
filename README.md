@@ -299,6 +299,13 @@ Ajustes do Sistema → Notificações → WakeUpeer. O app precisa estar assinad
 **A permissão de Calendário é pedida a cada build.**
 Assinatura ad-hoc muda a cada compilação. Use um certificado autoassinado persistente (veja [Instalação](#assinatura-durante-o-desenvolvimento)).
 
+**A tela de Perfis abre com o conteúdo espremido no rodapé.**
+Corrigido: o `HSplitView` guardava a posição das divisórias em disco, sob um nome próprio do AppKit, e restaurava a geometria de uma versão anterior da janela — subviews somando 708 pt numa janela de 640. A lista passou a ter largura fixa num `HStack`, e o app apaga as chaves órfãs no arranque. Para limpar à mão:
+
+```sh
+defaults delete com.guilherme.WakeUpeer "NSSplitView Subview Frames preferences, SidebarNavigationSplitView"
+```
+
 **Um app não abre ao disparar o perfil.**
 O painel mostra a falha com o motivo. Normalmente é um app desinstalado ou movido — reabra o item nas Preferências.
 
